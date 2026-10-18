@@ -1,0 +1,118 @@
+# =============================================================
+#  Proiect POS - gestiunea unui cluster de calculatoare
+#  Servicii: autentificare (Python + gRPC), REST (Go + Gin),
+#            notificari (Go), frontend (React - planificat),
+#            statii simulate prin containere Docker (SSH)
+# =============================================================
+
+# -------------------------------------------------------------
+# 1. Secrete - nu ajung niciodata in Git
+# -------------------------------------------------------------
+# Parole MariaDB / MongoDB, cheia de semnare JWT etc.
+# Se comite doar un sablon fara valori reale (.env.example).
+# Acopera si fisierul .env dintr-o colectie Bruno.
+.env
+.env.*
+!.env.example
+
+# Chei private SSH pentru conectarea la containerele-statie (NFR-SEC-01)
+# si chei pentru semnarea token-urilor JWS (daca folositi RS256 / ES256)
+*.pem
+*.key
+id_rsa
+id_ecdsa
+id_ed25519
+known_hosts
+secrets/
+
+# -------------------------------------------------------------
+# 2. Python (serviciul de autentificare)
+# -------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.so
+
+# Medii virtuale
+.venv/
+venv/
+env/
+
+# Pachete / build
+*.egg-info/
+dist/
+build/
+
+# Unelte de test si analiza
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# -------------------------------------------------------------
+# 3. Go (serviciul REST si serviciul de notificari)
+# -------------------------------------------------------------
+# Binare compilate (recomandat: go build -o bin/<serviciu>)
+bin/
+*.exe
+*.dll
+*.dylib
+*.test
+*.out
+
+# -------------------------------------------------------------
+# 4. Cod generat din fisierele .proto
+# -------------------------------------------------------------
+# Implicit acest cod SE COMITE: proiectul ruleaza fara protoc instalat,
+# iar in Go este conventia standard. Daca preferati sa il generati
+# la build (ex. in Dockerfile), decomentati liniile de mai jos.
+*_pb2.py
+*_pb2.pyi
+*_pb2_grpc.py
+*.pb.go
+
+# -------------------------------------------------------------
+# 5. Frontend React (Node) - pentru cand va fi adaugat
+# -------------------------------------------------------------
+node_modules/
+.vite/
+.eslintcache
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# -------------------------------------------------------------
+# 6. Docker si date locale ale bazelor de date
+# -------------------------------------------------------------
+# Suprascrieri locale ale docker compose (porturi, volume proprii)
+docker-compose.override.yml
+compose.override.yaml
+
+# Date persistate pe disc, daca montati volume locale pentru
+# MariaDB / MongoDB (scripturile de initializare .sql / .js raman in Git).
+# Daca folositi alte nume de foldere, adaugati-le aici.
+mariadb_data/
+mongo_data/
+*.sqlite3
+*.db
+
+# -------------------------------------------------------------
+# 7. Loguri
+# -------------------------------------------------------------
+*.log
+logs/
+
+# -------------------------------------------------------------
+# 8. Sistem de operare si editoare
+# -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Setari locale Claude Code (restul folderului .claude/ ramane in Git)
+.claude/settings.local.json

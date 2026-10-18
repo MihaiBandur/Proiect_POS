@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package auth;
+
+
+enum Role{
+    ROLE_UNSPECIFIED = 0;
+    ADMIN = 1;
+    MAINTAINER = 2;
+}
+
+message Account{
+    string  uid = 1;
+    string username = 2;
+    Role role = 3;
+    bool is_active = 4;
+}
+
+message LoginRequest{
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse{
+    string token = 1;
+}
+
+message ListUsersRequest{
+    string token = 1;
+}
+
+message ListUsersResponse{
+    repeated Account accounts = 1;
+}
+
+message CreateAccountRequest{
+    string token = 1;
+    string username = 2;
+    Role role = 3;
+
+}
+
+message CreateAccountResponse{
+    string uid = 1;
+}
+
+message DeactivateAccountRequest{
+    string token = 1;
+    string username = 2;
+}
+
+message ActivateAccountRequest{
+    string username = 1;
+    string password = 2;
+} 
+
+message ValidateTokenRequest{
+    string token = 1;
+}
+
+message ValidateTokenResponse{
+    string uid = 1;
+    Role role = 2;
+}
+
+message DestroyTokenRequest{
+    string token = 1;
+}
+
+service Auth{
+    rpc Login (LoginRequest) returns(LoginResponse);
+    rpc ListUsers(ListUsersRequest) returns(ListUsersResponse);
+    rpc AddAccount(CreateAccountRequest) returns(CreateAccountResponse);
+    rpc DeactivateAccount(DeactivateAccountRequest) returns(google.protobuf.Empty);
+    rpc ActivateAccount(ActivateAccountRequest) returns(google.protobuf.Empty);
+    rpc ValidateToken(ValidateTokenRequest) returns(ValidateTokenResponse);
+    rpc DestroyToken(DestroyTokenRequest) returns(google.protobuf.Empty);
+
+}
