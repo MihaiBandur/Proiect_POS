@@ -24,6 +24,7 @@ id_ecdsa
 id_ed25519
 known_hosts
 secrets/
+Untitled Collection
 
 # -------------------------------------------------------------
 # 2. Python (serviciul de autentificare)

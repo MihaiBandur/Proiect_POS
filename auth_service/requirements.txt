@@ -1,0 +1,8 @@
+bcrypt==5.0.0
+grpcio==1.80.0
+grpcio-tools==1.80.0
+protobuf==6.33.6
+PyJWT==2.15.1
+setuptools==84.0.0
+typing_extensions==4.16.0
+uuid6==2025.0.1
