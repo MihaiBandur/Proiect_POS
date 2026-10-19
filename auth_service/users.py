@@ -16,14 +16,14 @@ def _new_user(username: str, rol: int, is_active:bool = False, password = None):
         "is_active": is_active
     }
 
-_users = {}
-for _u in (
-    _new_user("admin", ROLE_ADMIN, is_active= True, password = "$2b$12$NCreP1CpHpdXCbicttpKv.rjUPfoz/4K9ZE0GTT9lhSbpPAPuJoI2"),
-    # maintainer activ - pentru testarea Login
+#_users = {}
+#for _u in (
+#    _new_user("admin", ROLE_ADMIN, is_active= True, password = "$2b$12$NCreP1CpHpdXCbicttpKv.rjUPfoz/4K9ZE0GTT9lhSbpPAPuJoI2"),
+#    # maintainer activ - pentru testarea Login
     _new_user("maintainer1", ROLE_MAINTAINER, is_active = False, password = "$2b$12$NCreP1CpHpdXCbicttpKv.rjUPfoz/4K9ZE0GTT9lhSbpPAPuJoI2"),
     # maintainer creat de admin, inca neactivat - pentru testarea ActivateAccount
-    _new_user("maintainer2", ROLE_MAINTAINER, is_active = True, password = "$2b$12$NCreP1CpHpdXCbicttpKv.rjUPfoz/4K9ZE0GTT9lhSbpPAPuJoI2"),
-):
+ #   _new_user("maintainer2", ROLE_MAINTAINER, is_active = True, password = "$2b$12$NCreP1CpHpdXCbicttpKv.rjUPfoz/4K9ZE0GTT9lhSbpPAPuJoI2"),
+#):
     _users[_u["uid"]] = _u
 
 _lock = threading.Lock()
