@@ -3,12 +3,16 @@ import threading
 import datetime
 from uuid6 import uuid7
 import os
+import sys
 from dotenv import load_dotenv
 
 blacklist = {}
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
+if SECRET_KEY is None:
+    sys.exit("Cheie pentru semnarea token JWT nu exista.")
+print(SECRET_KEY)
 algorithm = "HS256"
 ISSUER = "http://127.0.0.1:50051"
 TOKEN_TTL = datetime.timedelta(hours=1)
