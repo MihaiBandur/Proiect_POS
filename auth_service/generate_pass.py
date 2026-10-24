@@ -1,6 +1,8 @@
 import bcrypt
-
+import hashlib
+import password_module
 s = bcrypt.gensalt()
 
-parola = bcrypt.hashpw("parola".encode(), salt= s)
-print(parola.decode())
+parola_admin = password_module.generate_password("parola_admin")
+print(parola_admin)
+

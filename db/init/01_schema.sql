@@ -8,4 +8,4 @@ CREATE TABLE users (
 
 INSERT INTO users (uid, username, password, role, is_active)
 VALUES (UNHEX(REPLACE(UUID_v7(), '-', '')), 'admin',
-        '$2b$12$sUhmmBo0dgSfgcngYXYpuu2eQ0/Q3/dn0HD5jTaQ1A8MMKeoMDa1a', 'administrator', TRUE);
+        '', 'administrator', TRUE);

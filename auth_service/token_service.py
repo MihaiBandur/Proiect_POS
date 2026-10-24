@@ -12,7 +12,6 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 if SECRET_KEY is None:
     sys.exit("Cheie pentru semnarea token JWT nu exista.")
-print(SECRET_KEY)
 algorithm = "HS256"
 ISSUER = "http://127.0.0.1:50051"
 TOKEN_TTL = datetime.timedelta(hours=1)
@@ -30,8 +29,6 @@ def generate_token(uid, rol):
     return jwt.encode(payload, SECRET_KEY, algorithm=algorithm)
 
 def add_to_blacklist(token: str):
-    # Cheia este JWS-ul insusi: un token corupt nu poate fi decodat
-    # ca sa ii aflam jti-ul. Valoarea e momentul adaugarii.
     with _lock:
         blacklist[token] = datetime.datetime.now(datetime.timezone.utc)
 

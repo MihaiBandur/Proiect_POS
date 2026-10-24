@@ -4,7 +4,7 @@ import bcrypt
 import pymysql
 from pymysql.constants import CLIENT, ER
 from dotenv import load_dotenv
-
+import password_module as password_module
 load_dotenv()
 
 DB_CONFIG = {
@@ -32,7 +32,6 @@ def get_connection():
 
 
 def _row_to_user(row):
-    # Acelasi format de dictionar ca in users.py.
     return {
         "uid": uuid.UUID(bytes=row["uid"]),
         "username": row["username"],
@@ -43,7 +42,6 @@ def _row_to_user(row):
 
 
 def find_user_in_db(username: str):
-    """Intoarce dictionarul utilizatorului sau None daca nu exista."""
     with get_connection() as connection:
         with connection.cursor() as cursor:
             sql = "SELECT * FROM `users` WHERE `username` = %s"
@@ -60,7 +58,6 @@ def list_users_in_db():
 
 
 def insert_user_in_db(uid: uuid.UUID, username: str, rol: int) -> bool:
-    """Cont nou cu password NULL si is_active FALSE. False daca username-ul exista deja."""
     with get_connection() as connection:
         with connection.cursor() as cursor:
             sql = (
@@ -70,8 +67,6 @@ def insert_user_in_db(uid: uuid.UUID, username: str, rol: int) -> bool:
             try:
                 cursor.execute(sql, (uid.bytes, username, _ROLE_TO_DB[rol]))
             except pymysql.err.IntegrityError as e:
-                # Constrangerea UNIQUE pe username verifica duplicatele atomic,
-                # deci nu e nevoie de un SELECT inainte.
                 if e.args[0] == ER.DUP_ENTRY:
                     return False
                 raise
@@ -86,10 +81,7 @@ def set_active_in_db(username: str, is_active: bool) -> bool:
 
 
 def activate_user_in_db(username: str, password: str) -> bool:
-    """Seteaza parola si is_active=TRUE intr-un singur UPDATE, doar daca
-    contul este inca inactiv si fara parola. False in orice alt caz."""
-    s = bcrypt.gensalt()
-    password_hash = bcrypt.hashpw(password=password.encode(), salt=s).decode()
+    password_hash = password_module.generate_password(entered_password = password)
     with get_connection() as connection:
         with connection.cursor() as cursor:
             sql = (
@@ -100,10 +92,15 @@ def activate_user_in_db(username: str, password: str) -> bool:
 
 
 def set_password_in_db(username: str, password_hash: str) -> bool:
-    """Primeste hash-ul bcrypt deja calculat. False daca utilizatorul nu exista."""
     with get_connection() as connection:
         with connection.cursor() as cursor:
             sql = "UPDATE `users` SET `password` = %s WHERE `username` = %s"
             return cursor.execute(sql, (password_hash, username)) == 1
 
-
+def find_user_by_uid_in_db(uid: uuid.UUID | str):
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT * FROM `users` WHERE `uid` = %s"
+            cursor.execute(sql, (uuid.UUID(str(uid)).bytes,))
+            result = cursor.fetchone()
+            return _row_to_user(result) if result else None 
