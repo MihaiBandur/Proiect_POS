@@ -28,8 +28,8 @@ import auth_service
 import db_connection
 import token_service
 
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = os.getenv("TEST_ADMIN_PASSWORD", "parola")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 TEST_PREFIX = "zz_test_"
 
 _server = None

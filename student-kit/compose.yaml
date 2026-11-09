@@ -1,0 +1,106 @@
+x-lab-node: &lab-node
+  build: ./lab-node
+  depends_on:
+    lab-ssh-key-init:
+      condition: service_completed_successfully
+  restart: unless-stopped
+  mem_limit: 256m
+  cpus: 0.5
+  pids_limit: 128
+
+services:
+  lab-ssh-key-init:
+    build: ./lab-node
+    entrypoint: ["/init-executor-key.sh"]
+    volumes:
+      - executor-ssh-key:/executor-key
+    network_mode: none
+    restart: "no"
+
+
+  lab-node-1:
+    <<: *lab-node
+    hostname: node-1
+    environment:
+      LAB_NODE_ID: node-1
+    volumes:
+      - executor-ssh-key:/executor-key:ro
+      - lab-host-keys:/host-keys
+    networks:
+      lab-net:
+        ipv4_address: 10.89.0.11
+
+  lab-node-2:
+    <<: *lab-node
+    hostname: node-2
+    environment:
+      LAB_NODE_ID: node-2
+    volumes:
+      - executor-ssh-key:/executor-key:ro
+      - lab-host-keys:/host-keys
+    networks:
+      lab-net:
+        ipv4_address: 10.89.0.12
+
+  lab-node-3:
+    <<: *lab-node
+    hostname: node-3
+    environment:
+      LAB_NODE_ID: node-3
+    volumes:
+      - executor-ssh-key:/executor-key:ro
+      - lab-host-keys:/host-keys
+    networks:
+      lab-net:
+        ipv4_address: 10.89.0.13
+
+  rest-api:
+    build: ./rest-service
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/lab_manager
+    ports:
+      - "8080:8000"
+    volumes:
+      - script-data:/var/lib/lab-manager/scripts
+      - executor-ssh-key:/run/lab-manager/ssh:ro
+      - lab-host-keys:/var/lib/lab-manager/host-keys:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+      lab-node-1:
+        condition: service_healthy
+      lab-node-2:
+        condition: service_healthy
+      lab-node-3:
+        condition: service_healthy
+    networks:
+      - lab-net
+      - backend
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8.0
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+    networks:
+      - backend
+    restart: unless-stopped
+
+networks:
+  lab-net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.89.0.0/24
+  backend:
+
+volumes:
+  executor-ssh-key:
+  lab-host-keys:
+  script-data:
+  mongo-data:

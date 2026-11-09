@@ -1,6 +1,8 @@
 import auth_pb2_grpc
 import auth_pb2
 import grpc
+import os
+import sys
 from concurrent import futures
 import db_connection
 import password_module as password_module
@@ -39,7 +41,7 @@ class AuthService(auth_pb2_grpc.AuthServicer):
     def Login(self, request, context):
         username = request.username
         password = request.password
-        if(len(password) == 0 or len(username) == 0):
+        if(len(password) == 0 or len(username) == 0 or len(username) > 255) :
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "User-ul si parola trebuie sa fie campuri valide.")
         user = db_connection.find_user_in_db(username=username)
         if user is None:
@@ -134,12 +136,27 @@ class AuthService(auth_pb2_grpc.AuthServicer):
         logger.info("Logout: token distrus pentru %s", payload["sub"])
         return empty_pb2.Empty()
 
+def ensure_initial_admin():
+    username = os.getenv("ADMIN_USERNAME")
+    password = os.getenv("ADMIN_PASSWORD")
+    if not username or not password:
+        sys.exit("Lipsesc ADMIN_USERNAME sau ADMIN_PASSWORD din .env.")
+    password_hash = password_module.generate_password(entered_password=password)
+    created = db_connection.insert_active_user_in_db(
+        uid=uuid7(), username=username, rol=password_module.ROLE_ADMIN, password_hash=password_hash)
+    if created:
+        logger.info("Adminul initial %s a fost creat", username)
+    else:
+        logger.info("Adminul initial %s exista deja", username)
+
+
 
 def serve():
     logs.setup_logging()
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10)
     )
+    ensure_initial_admin()
 
     auth_pb2_grpc.add_AuthServicer_to_server(
         AuthService(),

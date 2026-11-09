@@ -5,7 +5,3 @@ CREATE TABLE users (
     role      ENUM('administrator', 'maintainer') NOT NULL,
     is_active BOOLEAN      NOT NULL DEFAULT FALSE
 );
-
-INSERT INTO users (uid, username, password, role, is_active)
-VALUES (UNHEX(REPLACE(UUID_v7(), '-', '')), 'admin',
-        '', 'administrator', TRUE);

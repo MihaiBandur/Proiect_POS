@@ -49,7 +49,21 @@ def find_user_in_db(username: str):
             result = cursor.fetchone()
             return _row_to_user(result) if result else None
 
-
+def insert_active_user_in_db(uid: uuid.UUID, username: str, rol:int, password_hash: str) -> bool:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            sql = (
+                "INSERT INTO `users` (`uid`, `username`, `password`, `role`, `is_active`) "
+                "VALUES (%s, %s, %s, %s, TRUE)"
+            )
+            try:
+                cursor.execute(sql, (uid.bytes, username, password_hash, _ROLE_TO_DB[rol]))  
+            except pymysql.err.IntegrityError as e:
+                if e.args[0] == ER.DUP_ENTRY:
+                    return False
+                raise
+            return True
+            
 def list_users_in_db():
     with get_connection() as connection:
         with connection.cursor() as cursor:

@@ -57,9 +57,12 @@ htmlcov/
 bin/
 *.exe
 *.dll
-*.dylib
+*.dyli
 *.test
 *.out
+go.mod
+go.sum
+generate.go
 
 # -------------------------------------------------------------
 # 4. Cod generat din fisierele .proto
@@ -70,7 +73,7 @@ bin/
 *_pb2.py
 *_pb2.pyi
 *_pb2_grpc.py
-*.pb.go
+
 
 # -------------------------------------------------------------
 # 5. Frontend React (Node) - pentru cand va fi adaugat

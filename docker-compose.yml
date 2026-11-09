@@ -10,7 +10,29 @@ services:
        - "127.0.0.1:3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ./db/mariadb-init:/docker-entrypoint-initdb.d:ro
+  mongodb:
+    image: mongodb/mongodb-atlas-local:8.0.34
+    environment:
+        MONGODB_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+        MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+        MONGO_USER_ADMIN_USERNAME: ${MONGO_USER_ADMIN_USERNAME}
+        MONGO_USER_ADMIN_PASSWORD: ${MONGO_USER_ADMIN_PASSWORD}
+        MONGO_DB_NAME: ${MONGO_DB_NAME}
+        MONGO_DB_OWNER_USERNAME: ${MONGO_DB_OWNER_USERNAME}
+        MONGO_DB_OWNER_PASSWORD: ${MONGO_DB_OWNER_PASSWORD}
+        MONGO_APP_USERNAME: ${MONGO_APP_USERNAME}
+        MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - ./db/mongodb-init:/docker-entrypoint-initdb.d
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+
     
 volumes:
   mariadb_data:
+  mongodb_data:
+  mongodb_config:
+
