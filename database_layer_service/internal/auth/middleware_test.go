@@ -31,6 +31,7 @@ func newTestRouter() *gin.Engine {
 	group := router.Group("/", Middleware(validator))
 	group.GET("/oricine", func(c *gin.Context) { c.String(http.StatusOK, FromContext(c).UID) })
 	group.GET("/admin", RequireAdmin(), func(c *gin.Context) { c.Status(http.StatusOK) })
+	group.GET("/token", func(c *gin.Context) { c.String(http.StatusOK, TokenFromContext(c)) })
 	return router
 }
 
@@ -74,5 +75,16 @@ func TestMiddleware(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTokenFromContext(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/token", nil)
+	req.Header.Set("Authorization", "Bearer token-admin")
+	rec := httptest.NewRecorder()
+	newTestRouter().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "token-admin" {
+		t.Errorf("TokenFromContext = %q (status %d), vrem token-admin", rec.Body, rec.Code)
 	}
 }

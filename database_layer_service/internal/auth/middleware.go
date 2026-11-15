@@ -11,7 +11,10 @@ import (
 	"job-management-service/internal/httpx"
 )
 
-const identityKey = "auth.identity"
+const (
+	identityKey = "auth.identity"
+	tokenKey    = "auth.token"
+)
 
 func Middleware(validator TokenValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -26,6 +29,7 @@ func Middleware(validator TokenValidator) gin.HandlerFunc {
 		switch {
 		case err == nil:
 			c.Set(identityKey, identity)
+			c.Set(tokenKey, token)
 			c.Next()
 		case errors.Is(err, ErrInvalidToken):
 			c.Header("WWW-Authenticate", `Bearer error="invalid_token"`)
@@ -51,11 +55,14 @@ func RequireAdmin() gin.HandlerFunc {
 	}
 }
 
-// FromContext intoarce utilizatorul pus in context de Middleware.
 func FromContext(c *gin.Context) Identity {
 	value, _ := c.Get(identityKey)
 	identity, _ := value.(Identity)
 	return identity
+}
+
+func TokenFromContext(c *gin.Context) string {
+	return c.GetString(tokenKey)
 }
 
 // bearerToken extrage token-ul din "Bearer <token>".

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -13,7 +14,7 @@ import (
 	"job-management-service/internal/gen/authpb"
 )
 
-const validateTimeout = 3 * time.Second
+const rpcTimeout = 3 * time.Second
 
 type GRPCValidator struct {
 	conn   *grpc.ClientConn
@@ -25,7 +26,6 @@ func NewGRPCValidator(addr string) (*GRPCValidator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("client gRPC pentru %s: %w", addr, err)
 	}
-
 	return &GRPCValidator{conn: conn, client: authpb.NewAuthClient(conn)}, nil
 }
 
@@ -34,21 +34,47 @@ func (v *GRPCValidator) Close() error {
 }
 
 func (v *GRPCValidator) Validate(ctx context.Context, token string) (Identity, error) {
-	ctx, cancel := context.WithTimeout(ctx, validateTimeout)
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
 	resp, err := v.client.ValidateToken(ctx, &authpb.ValidateTokenRequest{Token: token})
 	if err != nil {
-		switch status.Code(err) {
-		case codes.Unauthenticated:
-			return Identity{}, ErrInvalidToken
-		case codes.Unavailable, codes.DeadlineExceeded:
-			return Identity{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
-		default:
-			return Identity{}, fmt.Errorf("ValidateToken: %w", err)
-		}
+		return Identity{}, grpcError("ValidateToken", err)
 	}
 	return Identity{UID: resp.GetUid(), Role: roleFromProto(resp.GetRole())}, nil
+}
+
+func (v *GRPCValidator) FindAccount(ctx context.Context, token, uid string) (Account, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
+
+	resp, err := v.client.ListUsers(ctx, &authpb.ListUsersRequest{Token: token})
+	if err != nil {
+		return Account{}, grpcError("ListUsers", err)
+	}
+	for _, account := range resp.GetAccounts() {
+		if strings.EqualFold(account.GetUid(), uid) {
+			return Account{
+				UID:      account.GetUid(),
+				Username: account.GetUsername(),
+				Role:     roleFromProto(account.GetRole()),
+				IsActive: account.GetIsActive(),
+			}, nil
+		}
+	}
+	return Account{}, ErrAccountNotFound
+}
+
+// grpcError traduce codul unei erori gRPC in erorile pachetului auth.
+func grpcError(method string, err error) error {
+	switch status.Code(err) {
+	case codes.Unauthenticated, codes.PermissionDenied:
+		return ErrInvalidToken
+	case codes.Unavailable, codes.DeadlineExceeded:
+		return fmt.Errorf("%w: %v", ErrUnavailable, err)
+	default:
+		return fmt.Errorf("%s: %w", method, err)
+	}
 }
 
 func roleFromProto(role authpb.Role) Role {

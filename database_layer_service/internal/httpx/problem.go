@@ -23,6 +23,10 @@ type FieldError struct {
 }
 
 func AbortWithProblem(c *gin.Context, status int, detail string) {
+	AbortWithFields(c, status, detail, nil)
+}
+
+func AbortWithFields(c *gin.Context, status int, detail string, fields []FieldError) {
 	c.Header("Content-Type", problemContentType)
 	c.AbortWithStatusJSON(status, Problem{
 		Type:     "about:blank",
@@ -30,5 +34,6 @@ func AbortWithProblem(c *gin.Context, status int, detail string) {
 		Status:   status,
 		Detail:   detail,
 		Instance: c.Request.URL.Path,
+		Errors:   fields,
 	})
 }
