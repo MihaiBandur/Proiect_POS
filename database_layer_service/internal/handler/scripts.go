@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"job-management-service/internal/auth"
 	"job-management-service/internal/dto"
+	"job-management-service/internal/files"
 	"job-management-service/internal/httpx"
 	"job-management-service/internal/repository"
 	"job-management-service/internal/service"
@@ -16,8 +18,9 @@ const scriptsPath = basePath + "/scripts"
 
 // scriptHandler este controller-ul pentru /scripts (L3 2.1).
 type scriptHandler struct {
-	repo repository.ScriptRepository
-	svc  *service.Service
+	repo  repository.ScriptRepository
+	svc   *service.Service
+	files *files.ScriptStore // fisierele incarcate prin upload (6.2)
 }
 
 // list: GET /scripts?page=&items_per_page= -> 200 (RFC 9110, 9.3.1).
@@ -59,6 +62,20 @@ func (h *scriptHandler) get(c *gin.Context) {
 // create: POST /scripts -> 201 + Location + reprezentarea (RFC 9110, 9.3.3 si 15.3.2).
 // Serverul alege id-ul, de aceea folosim POST.
 func (h *scriptHandler) create(c *gin.Context) {
+	// Acelasi POST primeste doua formate, dupa Content-Type (RFC 9110, 8.3): multipart/form-data
+	// cu fisierul (upload, 6.2) sau JSON doar cu datele, pentru un fisier aflat deja pe server.
+	switch httpx.MediaType(c) {
+	case "multipart/form-data":
+		h.upload(c)
+		return
+	case "application/json":
+	default:
+		c.Header("Accept", "application/json, multipart/form-data")
+		httpx.AbortWithProblem(c, http.StatusUnsupportedMediaType,
+			"Corpul cererii trebuie trimis ca application/json sau multipart/form-data.")
+		return
+	}
+
 	var req dto.ScriptRequest
 	if !httpx.DecodeJSON(c, &req) {
 		return
@@ -109,6 +126,11 @@ func (h *scriptHandler) delete(c *gin.Context) {
 	if err != nil {
 		abortError(c, err)
 		return
+	}
+	// Fisierul incarcat prin upload dispare odata cu scriptul. Un fisier din afara folderului
+	// nostru (script adaugat prin JSON) ramane neatins.
+	if err := h.files.Remove(script.StorePath); err != nil {
+		log.Printf("stergerea fisierului %s: %v", script.StorePath, err)
 	}
 	c.JSON(http.StatusOK, dto.NewScript(script, deletedLinks(scriptsPath)))
 }

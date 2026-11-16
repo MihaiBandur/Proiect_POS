@@ -7,6 +7,8 @@ import (
 
 	"job-management-service/internal/auth"
 	"job-management-service/internal/dto"
+	"job-management-service/internal/executor"
+	"job-management-service/internal/files"
 	"job-management-service/internal/httpx"
 	"job-management-service/internal/repository"
 	"job-management-service/internal/service"
@@ -17,20 +19,38 @@ const basePath = "/api/manager"
 // Dependencies sunt tot ce are nevoie router-ul. main.go le creeaza pe cele reale,
 // iar testele pun in locul lor variante false sau in memorie.
 type Dependencies struct {
-	Validator auth.TokenValidator
-	Accounts  auth.AccountDirectory
-	Tx        repository.Transactor
-	Scripts   repository.ScriptRepository
-	Users     repository.UserRepository
-	Computers repository.ComputerRepository
-	Clusters  repository.ClusterRepository
+	Validator      auth.TokenValidator
+	Accounts       auth.AccountDirectory
+	Tx             repository.Transactor
+	Scripts        repository.ScriptRepository
+	Users          repository.UserRepository
+	Computers      repository.ComputerRepository
+	Clusters       repository.ClusterRepository
+	AllowedOrigins []string
+	// ScriptFiles: folderul in care se salveaza fisierele scripturilor (upload, 6.2).
+	ScriptFiles *files.ScriptStore
+	// Tasks si Executor: rularea scripturilor (6.3, 6.4).
+	Tasks    repository.TaskRepository
+	Executor executor.Dispatcher
 }
 
 // NewRouter construieste router-ul complet: tratarea erorilor HTTP si rutele serviciului.
 func NewRouter(deps Dependencies) *gin.Engine {
-	svc := service.New(deps.Tx, deps.Scripts, deps.Computers, deps.Clusters, deps.Users, deps.Accounts)
+	svc := service.New(service.Config{
+		Tx:        deps.Tx,
+		Scripts:   deps.Scripts,
+		Computers: deps.Computers,
+		Clusters:  deps.Clusters,
+		Users:     deps.Users,
+		Tasks:     deps.Tasks,
+		Accounts:  deps.Accounts,
+		Executor:  deps.Executor,
+	})
 
 	router := httpx.NewEngine()
+	// CORS trebuie adaugat inaintea oricarei rute: in Gin, Use se aplica doar rutelor
+	// inregistrate dupa el. Asa ajunge si inaintea autentificarii, pentru preflight.
+	router.Use(httpx.CORS(deps.AllowedOrigins))
 	api := router.Group(basePath, auth.Middleware(deps.Validator))
 	// Rutele din acest grup cer in plus rolul de administrator (L3 2.1).
 	admin := api.Group("", auth.RequireAdmin())
@@ -38,7 +58,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	api.GET("", getRoot)
 
 	// Scripturi: oricine le poate citi; doar adminul le gestioneaza (L3 2.1).
-	scripts := &scriptHandler{repo: deps.Scripts, svc: svc}
+	scripts := &scriptHandler{repo: deps.Scripts, svc: svc, files: deps.ScriptFiles}
 	api.GET("/scripts", scripts.list)
 	api.GET("/scripts/:id", scripts.get)
 	admin.POST("/scripts", scripts.create)
@@ -83,6 +103,15 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	admin.PUT("/clusters/:id/users/:userId", clusterUsers.assignUser)
 	admin.DELETE("/clusters/:id/users/:userId", clusterUsers.unassignUser)
 
+	// Task-uri: maintainerul porneste rularea unui script instalat pe un calculator al lui
+	// (SP 1.3, L3 2.2). Lista si starea task-urilor: adminul vede tot, maintainerul doar ale lui.
+	tasks := &taskHandler{svc: svc}
+	maintainer := api.Group("", auth.RequireMaintainer())
+	maintainer.POST("/computers/:id/scripts/:scriptId/tasks", tasks.launchOnComputer)
+	maintainer.POST("/clusters/:id/scripts/:scriptId/tasks", tasks.launchOnCluster)
+	api.GET("/tasks", tasks.list)
+	api.GET("/tasks/:id", tasks.get)
+
 	// Gestiunea utilizatorilor e doar a adminului (SP 1.3).
 	users := &userHandler{repo: deps.Users, accounts: deps.Accounts, svc: svc}
 	admin.GET("/users", users.list)
@@ -102,6 +131,7 @@ func getRoot(c *gin.Context) {
 			"computers": {Href: basePath + "/computers"},
 			"clusters":  {Href: basePath + "/clusters"},
 			"users":     {Href: basePath + "/users"},
+			"tasks":     {Href: basePath + "/tasks"},
 		},
 	})
 }

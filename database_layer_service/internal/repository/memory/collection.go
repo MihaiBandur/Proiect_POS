@@ -160,6 +160,24 @@ func (c *collection[T]) updateAll(change func(*T) bool) {
 	}
 }
 
+// listWhere intoarce o pagina din documentele pentru care match e adevarat, plus numarul lor.
+func (c *collection[T]) listWhere(match func(T) bool, offset, limit int) ([]T, int) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	var found []T
+	for _, doc := range c.docs {
+		if match(doc) {
+			found = append(found, doc)
+		}
+	}
+	found = c.sorted(found)
+	total := len(found)
+	start := min(offset, total)
+	end := min(start+limit, total)
+	return found[start:end], total
+}
+
 // find intoarce primul document (in ordinea id-urilor) pentru care match e adevarat.
 func (c *collection[T]) find(match func(T) bool) (T, error) {
 	c.mu.RLock()

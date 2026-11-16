@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"job-management-service/internal/auth"
 	"job-management-service/internal/dto"
@@ -54,7 +55,7 @@ func (h *computerHandler) listScripts(c *gin.Context) {
 	subPath := computerScriptsPath(c)
 	items := make([]any, 0, len(scripts))
 	for _, script := range scripts {
-		links := relationLinks(subPath, script.ID, "script", scriptsPath, identity)
+		links := installedScriptLinks(subPath, script.ID, identity)
 		if verbose {
 			items = append(items, dto.NewScript(script, links))
 		} else {
@@ -81,7 +82,17 @@ func (h *computerHandler) getScript(c *gin.Context) {
 		abortError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, dto.NewScript(script, relationLinks(computerScriptsPath(c), scriptID, "script", scriptsPath, identity)))
+	c.JSON(http.StatusOK, dto.NewScript(script, installedScriptLinks(computerScriptsPath(c), scriptID, identity)))
+}
+
+// installedScriptLinks: link-urile unui script instalat pe un calculator. Maintainerul primeste
+// in plus actiunea "run" (POST), care porneste rularea scriptului (SP 1.3).
+func installedScriptLinks(subPath string, scriptID bson.ObjectID, identity auth.Identity) httpx.Links {
+	links := relationLinks(subPath, scriptID, "script", scriptsPath, identity)
+	if identity.IsMaintainer() {
+		links["run"] = httpx.Link{Href: links["self"].Href + "/tasks", Type: http.MethodPost}
+	}
+	return links
 }
 
 // installScript: PUT /computers/:id/scripts/:scriptId (SP 1.3: "instaleaza un script").

@@ -86,5 +86,9 @@ func clusterLinks(id bson.ObjectID, identity auth.Identity) httpx.Links {
 	if identity.IsAdmin() {
 		links["users"] = httpx.Link{Href: self + "/users"}
 	}
+	if identity.IsMaintainer() {
+		// Sablon (RFC 6570): maintainerul ruleaza un script pe tot clusterul (SP 1.3).
+		links["run"] = httpx.Link{Href: self + "/scripts/{scriptId}/tasks", Type: http.MethodPost, Templated: true}
+	}
 	return links
 }

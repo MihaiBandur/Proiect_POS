@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"io"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 
 	"job-management-service/internal/auth"
+	"job-management-service/internal/executor"
+	"job-management-service/internal/files"
 	"job-management-service/internal/httpx"
 	"job-management-service/internal/repository/memory"
+	"job-management-service/internal/repository/mongodb"
+	"job-management-service/internal/repository/mongodb/mongotest"
 )
 
 const (
@@ -23,6 +28,9 @@ const (
 	anaUID         = "0190f2a8-7c1e-7a3b-9d4e-2f6a8b1c3d5e" // maintainer; e si contul din maintainerToken
 	bossUID        = "0190f2a8-b055-7000-8000-000000000001" // un al doilea administrator
 	unavailableUID = "0190f2a8-dead-7000-8000-000000000000" // simuleaza A&A oprit
+
+	// Originea aplicatiei React, permisa prin CORS in teste.
+	webOrigin = "http://localhost:5173"
 )
 
 // fakeValidator raspunde in locul ValidateToken, fara sa apeleze A&A Services.
@@ -52,10 +60,59 @@ func (f fakeAccounts) FindAccount(_ context.Context, token, uid string) (auth.Ac
 	return auth.Account{}, auth.ErrAccountNotFound
 }
 
+// testScriptFiles salveaza fisierele incarcate in teste intr-un folder temporar (vezi TestMain).
+var testScriptFiles *files.ScriptStore
+
+func testScriptFilesDir() string {
+	return testScriptFiles.Dir()
+}
+
+// TestMain ruleaza o data pentru tot pachetul: creeaza folderul temporar al scripturilor,
+// ruleaza testele (m.Run) si sterge folderul la final.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "jms-scripts-")
+	if err != nil {
+		panic(err)
+	}
+	if testScriptFiles, err = files.NewScriptStore(dir); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
+// fakeExecutor inlocuieste executorul din student-kit: retine id-urile primite, poate simula
+// modul mock sau un executor oprit.
+type fakeExecutor struct {
+	mock bool
+	down bool
+	jobs []string
+}
+
+func (f *fakeExecutor) Mock() bool { return f.mock }
+
+func (f *fakeExecutor) Health(context.Context) error { return nil }
+
+func (f *fakeExecutor) Run(_ context.Context, jobID string) error {
+	if f.down {
+		return executor.ErrUnavailable
+	}
+	f.jobs = append(f.jobs, jobID)
+	return nil
+}
+
 func newTestRouter() *gin.Engine {
+	return newTestRouterWith(nil)
+}
+
+// newTestRouterWith permite unui test sa inlocuiasca o dependenta (ex. o baza de date oprita).
+// Implicit testele folosesc stocarea din memorie; cu MONGO_TESTS=1 aceleasi teste ruleaza pe
+// MongoDB-ul de test, golit inainte de fiecare router nou.
+func newTestRouterWith(change func(*Dependencies)) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	gin.DefaultWriter = io.Discard
-	return NewRouter(Dependencies{
+	deps := Dependencies{
 		Validator: fakeValidator{
 			adminToken:      {UID: "uid-admin", Role: auth.RoleAdmin},
 			maintainerToken: {UID: anaUID, Role: auth.RoleMaintainer},
@@ -64,12 +121,29 @@ func newTestRouter() *gin.Engine {
 			anaUID:  {UID: anaUID, Username: "ana", Role: auth.RoleMaintainer, IsActive: true},
 			bossUID: {UID: bossUID, Username: "boss", Role: auth.RoleAdmin, IsActive: true},
 		},
-		Tx:        memory.NewTransactor(),
-		Scripts:   memory.NewScriptRepository(),
-		Users:     memory.NewUserRepository(),
-		Computers: memory.NewComputerRepository(),
-		Clusters:  memory.NewClusterRepository(),
-	})
+		AllowedOrigins: []string{webOrigin},
+		ScriptFiles:    testScriptFiles,
+		Executor:       &fakeExecutor{},
+	}
+	if db := mongotest.Open(); db != nil {
+		deps.Tx = mongodb.NewTransactor(db.Client())
+		deps.Scripts = mongodb.NewScriptRepository(db)
+		deps.Users = mongodb.NewUserRepository(db)
+		deps.Computers = mongodb.NewComputerRepository(db)
+		deps.Clusters = mongodb.NewClusterRepository(db)
+		deps.Tasks = mongodb.NewTaskRepository(db)
+	} else {
+		deps.Tx = memory.NewTransactor()
+		deps.Scripts = memory.NewScriptRepository()
+		deps.Users = memory.NewUserRepository()
+		deps.Computers = memory.NewComputerRepository()
+		deps.Clusters = memory.NewClusterRepository()
+		deps.Tasks = memory.NewTaskRepository()
+	}
+	if change != nil {
+		change(&deps)
+	}
+	return NewRouter(deps)
 }
 
 // send trimite o cerere; un corp nevid e trimis ca application/json.

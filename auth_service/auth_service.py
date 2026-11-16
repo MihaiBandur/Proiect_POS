@@ -163,13 +163,16 @@ def serve():
         server=server
     )
 
-    server.add_insecure_port("127.0.0.1:50051")
+    # Adresa pe care asculta serverul. Local ramane 127.0.0.1 (doar calculatorul tau); in Docker,
+    # docker-compose seteaza AUTH_ADDR=0.0.0.0:50051, ca serviciul Go sa-l poata apela din alt container.
+    address = os.getenv("AUTH_ADDR", "127.0.0.1:50051")
+    server.add_insecure_port(address)
 
     server.start()
 
     print("Auth grpc server started")
-    print("Listenig on 127.0.0.1:50051")
-    logger.info("Serverul a pornit pe 127.0.0.1:50051")
+    print(f"Listening on {address}")
+    logger.info("Serverul a pornit pe %s", address)
 
     try:
         server.wait_for_termination()

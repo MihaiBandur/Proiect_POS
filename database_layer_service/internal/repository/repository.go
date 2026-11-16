@@ -12,6 +12,7 @@ import (
 
 // ErrNotFound: documentul cerut nu exista.
 var ErrNotFound = errors.New("documentul nu exista")
+var ErrUnavailable = errors.New("baza de date nu este disponibila")
 
 // DuplicateError: un camp unic (SP, Tabelele 2-4) are deja aceeasi valoare in alt document.
 type DuplicateError struct {
@@ -82,6 +83,14 @@ type UserRepository interface {
 	RemoveManaged(ctx context.Context, userID bson.ObjectID, ref model.ManagedRef) (removed bool, err error)
 	// RemoveManagedEverywhere scoate ref din lista tuturor utilizatorilor (stergere in cascada).
 	RemoveManagedEverywhere(ctx context.Context, ref model.ManagedRef) error
+}
+
+// TaskRepository: rularile de scripturi (SP, Tabelul 6). Task-urile nu se modifica prin acest
+// serviciu (starea o schimba executorul), deci nu au operatii de legatura.
+type TaskRepository interface {
+	Repository[model.Task]
+	// ListByUser intoarce task-urile pornite de un utilizator (istoricul maintainerului).
+	ListByUser(ctx context.Context, userID bson.ObjectID, offset, limit int) ([]model.Task, int, error)
 }
 
 // Transactor ruleaza mai multe operatii, pe colectii diferite, ca un tot unitar:

@@ -13,8 +13,6 @@ import (
 	"job-management-service/internal/service"
 )
 
-// abortError transforma o eroare din repository sau din service in raspuns HTTP.
-// In Faza 5 adaugam aici baza de date indisponibila (503).
 func abortError(c *gin.Context, err error) {
 	var (
 		notFound  *service.NotFoundError
@@ -37,6 +35,9 @@ func abortError(c *gin.Context, err error) {
 		}})
 	case errors.As(err, &conflict):
 		httpx.AbortWithProblem(c, http.StatusConflict, conflict.Detail)
+	case errors.Is(err, repository.ErrUnavailable):
+		log.Printf("baza de date: %v", err)
+		httpx.AbortWithProblem(c, http.StatusServiceUnavailable, "Baza de date nu este disponibila momentan.")
 	case errors.Is(err, auth.ErrUnavailable):
 		log.Printf("A&A Services: %v", err)
 		httpx.AbortWithProblem(c, http.StatusServiceUnavailable, "Serviciul de autentificare nu este disponibil momentan.")

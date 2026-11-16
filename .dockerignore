@@ -1,0 +1,9 @@
+# Contextul de build din radacina (folosit de imaginea job-management): trimitem la Docker doar
+# serviciul Go si executorul din student-kit, nu tot proiectul.
+*
+!database_layer_service/
+!student-kit/rest-service/ssh-executor/
+database_layer_service/data/
+database_layer_service/api/
+**/*.test
+**/.DS_Store

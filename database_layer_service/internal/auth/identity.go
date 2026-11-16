@@ -16,3 +16,7 @@ type Identity struct {
 func (i Identity) IsAdmin() bool {
 	return i.Role == RoleAdmin
 }
+
+func (i Identity) IsMaintainer() bool {
+	return i.Role == RoleMaintainer
+}

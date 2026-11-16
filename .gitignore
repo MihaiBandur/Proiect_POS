@@ -120,3 +120,6 @@ Thumbs.db
 
 # Setari locale Claude Code (restul folderului .claude/ ramane in Git)
 .claude/settings.local.json
+
+# Fisierele scripturilor incarcate local (upload, Faza 6.2)
+database_layer_service/data/

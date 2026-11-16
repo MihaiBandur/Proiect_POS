@@ -55,6 +55,18 @@ func RequireAdmin() gin.HandlerFunc {
 	}
 }
 
+// RequireMaintainer permite operatia doar maintainerilor (SP 1.3: maintainerul "initializeaza
+// rularea task-urilor noi"); altfel 403.
+func RequireMaintainer() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !FromContext(c).IsMaintainer() {
+			httpx.AbortWithProblem(c, http.StatusForbidden, "Operatia este permisa doar maintainerilor.")
+			return
+		}
+		c.Next()
+	}
+}
+
 func FromContext(c *gin.Context) Identity {
 	value, _ := c.Get(identityKey)
 	identity, _ := value.(Identity)

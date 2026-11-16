@@ -1,0 +1,6 @@
+# Ce NU se copiaza in imagine.
+__pycache__/
+*.pyc
+logs/
+.env
+.venv/

@@ -29,8 +29,13 @@ type Validation struct {
 }
 
 func (v *Validation) Missing(field string) {
-	v.missing = append(v.missing, FieldError{Field: field, Message: "campul este obligatoriu"})
+	v.NotConform(field, "campul este obligatoriu")
+}
 
+// NotConform noteaza o parte a cererii care nu respecta structura resursei, cu un mesaj propriu
+// (ex. un fisier binar acolo unde se cere text): tot 415, ca un camp lipsa (L3 1.2).
+func (v *Validation) NotConform(field, message string) {
+	v.missing = append(v.missing, FieldError{Field: field, Message: message})
 }
 
 func (v *Validation) Invalid(field, message string) {
@@ -57,6 +62,12 @@ func DecodeJSON(c *gin.Context, dst Validator) bool {
 		return false
 	}
 
+	return CheckValid(c, dst)
+}
+
+// CheckValid ruleaza regulile DTO-ului si raspunde 415 sau 422 daca nu sunt respectate.
+// O folosesc atat corpurile JSON (DecodeJSON), cat si formularele multipart (upload).
+func CheckValid(c *gin.Context, dst Validator) bool {
 	var v Validation
 	dst.Validate(&v)
 	switch {
@@ -68,6 +79,16 @@ func DecodeJSON(c *gin.Context, dst Validator) bool {
 		return false
 	}
 	return true
+}
+
+// MediaType intoarce tipul corpului cererii, fara parametri si cu litere mici
+// (ex. "multipart/form-data" din "multipart/form-data; boundary=..."), sau "" daca lipseste.
+func MediaType(c *gin.Context) string {
+	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
+	if err != nil {
+		return ""
+	}
+	return mediaType
 }
 
 func isJSON(contentType string) bool {

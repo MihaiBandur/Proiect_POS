@@ -147,3 +147,21 @@ func (r *userRepository) RemoveManagedEverywhere(_ context.Context, ref model.Ma
 	r.updateAll(func(u *model.User) bool { return removeFrom(&u.IDCompClust, ref) })
 	return nil
 }
+
+// ---------- task-uri ----------
+
+type taskRepository struct {
+	*collection[model.Task]
+}
+
+func NewTaskRepository() repository.TaskRepository {
+	return &taskRepository{newCollection(spec[model.Task]{
+		idOf:  func(t model.Task) bson.ObjectID { return t.ID },
+		setID: func(t *model.Task, id bson.ObjectID) { t.ID = id },
+	})}
+}
+
+func (r *taskRepository) ListByUser(_ context.Context, userID bson.ObjectID, offset, limit int) ([]model.Task, int, error) {
+	tasks, total := r.listWhere(func(t model.Task) bool { return t.IDUser == userID }, offset, limit)
+	return tasks, total, nil
+}
